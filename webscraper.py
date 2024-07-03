@@ -12,17 +12,17 @@ import datetime
 doc_num = []
 # RECOMMENDED TOTAL RANGE: (2180000, 2822145) FOR ABOUT 650K PATENTS
 # To be safe, break it up into sections (make sure not to overwrite your csv or txt files!)
-for i in range(2722145, 2822145):
+for i in range(2791945, 2821944):
     doc_num.append(i)
-# Column 3: Application Date -- between (22) and either (24) or (45) [so first parse to 45, then to 22 if app]
+# Column 2: Application Date -- between (22) and either (24) or (45) [so first parse to 45, then to 22 if app]
 application_date = []
-# Column 4: Industries -- between (51) and either (52) or (12)
+# Column 3: Industries -- between (51) and either (52) or (12)
 industries = []
-# Column 5: Applicants -- (71) because sometimes there aren't authors
+# Column 4: Applicants -- (71) because sometimes there aren't authors
 applicants = []
-# Column 6: Authors -- (72) if applicable
+# Column 5: Authors -- (72) if applicable
 authors = []
-# Column 7: Author Countries -- (**) letters after (72) and before (73) if applicable and (54) if not
+# Column 6: Author Countries -- (**) letters after (72) and before (73) if applicable and (54) if not
 author_countries = []
 # at the end, also save a text file with the counts of author countries
 country_count = {}
@@ -36,7 +36,7 @@ for i in doc_num:
     # Must install lxml library here for faster HTML parsing
     soup = BeautifulSoup(response.text, "lxml")
     # Find application date in HTML source
-    application_date_match = re.search('\(22\).*\</b\>', str(soup))
+    application_date_match = re.search(r'\(22\).*\</b\>', str(soup))
     if not application_date_match:
         application_date.append("NA")
     else:
@@ -61,7 +61,7 @@ for i in doc_num:
     # Some of these older patents just list "applicants," some just list "authors."
     # NOTE: I am only scraping the country codes from "authors"! That seems to be how the newer ones are formatted.
     # I expect that all the newer patents will just have "NA" here, but I am tracking it just to be safe.
-    applicants_match = re.search('\(71\).*\(72\)', clean_text)
+    applicants_match = re.search(r'\(71\).*\(72\)', clean_text)
     patent_applicants = []
     if not applicants_match:
         patent_applicants.append("NA")
@@ -71,7 +71,7 @@ for i in doc_num:
             if applicant not in patent_applicants:
                 patent_applicants.append(applicant)
     applicants.append(patent_applicants)
-    authors_match = re.search('\(72\).*\(73\)', clean_text)
+    authors_match = re.search(r'\(72\).*\(73\)', clean_text)
     patent_authors = []
     patent_author_countries = []
     if not authors_match:
@@ -86,12 +86,13 @@ for i in doc_num:
             if author not in patent_authors:
                 patent_authors.append(author)
                 # Every two capital letters contained within parentheses is presumed to be a country code.
-                author_country = re.search("\([A-Z][A-Z]\)", author)
+                author_country = re.search(r"\([A-Z][A-Z]\)", author)
                 if author_country:
                     clean_country = author_country.group().strip('() ')
                     patent_author_countries.append(clean_country)
     authors.append(patent_authors)
     author_countries.append(patent_author_countries)
+    print(f"Finished with {i}")
 
 # print(doc_num)
 # print(application_date)
@@ -109,7 +110,8 @@ data_frame = pandas.DataFrame({"Patent Number": doc_num,
                                "Author Countries": author_countries})
 # Using a datetime string to help make sure that we do not accidentally overwrite our files.
 date_string = str(datetime.datetime.today()).split(":")[0]
-data_frame.to_csv(f'russian_patents_{date_string}.csv', index=False, encoding="utf-8-sig")
+doc_num_string = " " + str(doc_num[0]) + " to " + str(doc_num[-1])
+data_frame.to_csv(f'russian_patents_{date_string}{doc_num_string}.csv', index=False, encoding="utf-8-sig")
 # Update country_count dictionary with new country count
 for sublist in author_countries:
     for country in sublist:
@@ -120,5 +122,5 @@ for sublist in author_countries:
 
 # Write the dictionary to a TXT file using json. Look in country_count.txt for the number of country references!
 print(country_count)
-with open(f"country_count_{date_string}.txt", "w") as text_file:
+with open(f"country_count_{date_string}{doc_num_string}.txt", "w") as text_file:
     text_file.write(json.dumps(country_count))
